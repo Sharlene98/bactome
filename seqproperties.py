@@ -361,6 +361,29 @@ def nucleotideLength(fastafile):
         nnseq = o.seqNN[k][0]
         print('%s : %s' % (k, str(len(str(nnseq)))))
 
+def complement(fastafile):
+    '''!
+    Function to generate the complement sequence of each FASTA record. 
+    This is done using reverse_complement function in Biopython - each 
+    FASTA sequence is assumed to be in 5'-->3', this function will 
+    generate the complementary sequence in 5'-->3' orientation rather 
+    than 3'<--5' orientation.
+
+    Usage:
+
+        python seqproperties.py complement --fastafile=<FASTA file path> 
+
+     The output will be in FASTA format.
+
+    @param fastafile String: Path to the FASTA file to be processed.
+    '''
+    o = CodonUsageBias()
+    o.addSequencesFromFasta(fastafile)
+    for k in o.seqNN:
+        nnseq = o.seqNN[k][0]
+        print("> %s" % k)
+        print(str(nnseq.reverse_complement()))
+
 def flattenCodonCount(CC):
     '''!
     Function to flatten the codon usage / frequency table by 
@@ -688,7 +711,8 @@ def _toPeptide(sequence, molecule, genetic_code=1, to_stop=True):
 
 def molecularWeight(fastafile, molecule, genetic_code=1, to_stop=True):
     '''!
-    Function to calculate the molecular weight by each FASTA record.
+    Function to calculate the molecular weight, using Biopython, by 
+    each FASTA record.
 
     Usage:
 
@@ -966,6 +990,109 @@ def gravy(fastafile, molecule, genetic_code=1, to_stop=True):
         try:
             result = '%0.6f' % sequence.gravy()
             data = [k, result]
+            data = ' : '.join([str(x) for x in data])
+            print(data)
+        except ZeroDivisionError:
+            data = ' : '.join([str(k), 'undefined'])
+            print(data)
+        except KeyError:
+            data = ' : '.join([str(k), 'KeyError'])
+            print(data)
+        except IndexError:
+            data = ' : '.join([str(k), 'IndexError'])
+            print(data)
+        except:
+            data = ' : '.join([str(k), 'Error'])
+            print(data)
+
+def flexibility(fastafile, molecule, genetic_code=1, to_stop=True):
+    '''!
+    Function to calculate the flexibility by each FASTA record. This 
+    is calculated by BioPython library using method described in 
+    Vihinen, et al. 1994. Accuracy of protein flexibility predictions. 
+    Proteins, 19: 141-149.
+
+    Usage:
+
+        python seqproperties.py flexibility --molecule=<molecule type> --genetic_code=<genetic code number> --to_stop=<Boolean flag> --fastafile=<FASTA file path>
+
+    Options for genetic_code and to_stop are needed if molecule type 
+    is not peptide, as these options are needed for translation. The 
+    output will be in the format of
+
+        <sequence ID> : <flexibility value>
+
+    @param fastafile String: Path to the FASTA file to be processed.
+    @param molecule String: Defines the type of molecule. Three 
+    options are allowed: 'peptide' for amino acid sequences, 'DNA' for 
+    DNA sequences (requires transcription and translation), and 'RNA' 
+    for RNA sequence (requires translation).
+    @param genetic_code Integer: Genetic code number to be used for 
+    translation. Default = 1 (Standard Code). For more information, 
+    see <https://www.ncbi.nlm.nih.gov/Taxonomy/Utils/wprintgc.cgi>
+    @param to_stop Boolean: Flag to stop translation when first stop 
+    codon is encountered. Default = True.
+    '''
+    o = CodonUsageBias()
+    o.addSequencesFromFasta(fastafile)
+    for k in o.seqNN:
+        sequence = _toPeptide(str(o.seqNN[k][0]), molecule, 
+                              genetic_code, to_stop)
+        try:
+            result = '%0.6f' % sequence.flexibility()
+            data = [k, result]
+            data = ' : '.join([str(x) for x in data])
+            print(data)
+        except ZeroDivisionError:
+            data = ' : '.join([str(k), 'undefined'])
+            print(data)
+        except KeyError:
+            data = ' : '.join([str(k), 'KeyError'])
+            print(data)
+        except IndexError:
+            data = ' : '.join([str(k), 'IndexError'])
+            print(data)
+        except:
+            data = ' : '.join([str(k), 'Error'])
+            print(data)
+
+def extinction_coefficient(fastafile, molecule, genetic_code=1, 
+                           to_stop=True):
+    '''!
+    Function to calculate the molar extinction coefficient by each 
+    FASTA record. This is calculated by BioPython library.
+
+    Usage:
+
+        python seqproperties.py extinction --molecule=<molecule type> --genetic_code=<genetic code number> --to_stop=<Boolean flag> --fastafile=<FASTA file path>
+
+    Options for genetic_code and to_stop are needed if molecule type 
+    is not peptide, as these options are needed for translation. The 
+    output will be in the format of
+
+        <sequence ID> : <extinction coefficient assuming reduced 
+        cysteine> : <extinction coefficient assuming non-reduced 
+        cysteine>
+
+    @param fastafile String: Path to the FASTA file to be processed.
+    @param molecule String: Defines the type of molecule. Three 
+    options are allowed: 'peptide' for amino acid sequences, 'DNA' for 
+    DNA sequences (requires transcription and translation), and 'RNA' 
+    for RNA sequence (requires translation).
+    @param genetic_code Integer: Genetic code number to be used for 
+    translation. Default = 1 (Standard Code). For more information, 
+    see <https://www.ncbi.nlm.nih.gov/Taxonomy/Utils/wprintgc.cgi>
+    @param to_stop Boolean: Flag to stop translation when first stop 
+    codon is encountered. Default = True.
+    '''
+    o = CodonUsageBias()
+    o.addSequencesFromFasta(fastafile)
+    for k in o.seqNN:
+        sequence = _toPeptide(str(o.seqNN[k][0]), molecule, 
+                              genetic_code, to_stop)
+        try:
+            result = sequence.molar_extinction_coefficient()
+            data = [k, '%0.2f' % result[0], '%0.2f' % result[1]]
             data = ' : '.join([str(x) for x in data])
             print(data)
         except ZeroDivisionError:
@@ -1332,7 +1459,7 @@ def findORF(fastafile, min_length=33, max_length=105000, outfmt="CSV",
 
     The description line for FASTA output will be:
 
-        <count>|<sequence ID>|<start position>|<stop position>|<strand>|<length of ORF> : 
+        <count>|<sequence ID>|<start position>|<stop position>|<strand>|<length of ORF>
 
     @param fastafile String: Path to the FASTA file to be processed.
     @param min_length Integer: Minimum length of ORF. Default = 33.
@@ -1444,6 +1571,41 @@ def findORF(fastafile, min_length=33, max_length=105000, outfmt="CSV",
                 print(seq[coord[0]:coord[1]])
             count = count + 1
 
+def random_selection(fastafile, n=250, with_replacement=True):
+    '''!
+    Function to select a random set of sequences from a given FASTA 
+    file.
+
+    Usage:
+
+        python seqproperties.py rselect --fastafile=<fasta file path> --n=250 --with_replacement=True
+
+    The output format will be:
+
+        <count> : <sequence>
+
+    @param fastafile String: Path to the FASTA file to be processed.
+    @param n Integer: Number of sequences to select. Default = 250.
+    @param with_replacement String: Flag to indicate whether duplicated 
+    selection is allowed. Allowable options are "True" (no duplicates 
+    allowed) or "False" (duplicates allowed). Default = "True".
+    '''
+    q = CodonUsageBias()
+    q.addSequencesFromFasta(fastafile)
+    seq = []
+    if len(q.seqNN) < int(n):
+        seq = [str(s[1]) for s in q.seqNN]
+    else:
+        while len(seq) < int(n):
+            s[0] = random.sample(q.seqNN.items(), k=1)
+            if str(with_replacement) == "True" and (s not in seq):
+                seq.append(str(s[1][0]))
+            else:
+                seq.append(str(s[1][0]))
+    count = 1
+    for s in seq:
+        print("%s : %s" % (str(count), s))
+        count = count + 1
 
 if __name__ == '__main__':
     exposed_functions = {'a': percentA,
@@ -1452,7 +1614,10 @@ if __name__ == '__main__':
                          'aromaticity': aromaticity,
                          'asymfreq': asymmetricFrequency,
                          'codoncount': codonCount,
+                         'complement': complement,
+                         'extinction': extinction_coefficient,
                          'count': genericCount,
+                         'flexibility': flexibility,
                          'g': percentG,
                          'gc': percentGC,
                          'gci': percentGCi,
@@ -1469,6 +1634,7 @@ if __name__ == '__main__':
                          'plength': peptideLength,
                          'propensity': propensity,
                          'reverse': hasReverse,
+                         'rselect': random_selection,
                          'secstruct': secondaryStructure,
                          'showDesc': sequenceDescriptions,
                          'showIDs': sequenceIDs,
